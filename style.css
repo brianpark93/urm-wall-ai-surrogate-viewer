@@ -49,11 +49,24 @@ header .subtitle { font-size: 0.78rem; color: #8aabce; }
 .range-badge.extrapolated { background: #ffe3e3; color: #a51d1d; }
 .loading { font-size: 0.8rem; color: #888; font-style: italic; }
 
+.reliability-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 28px;
+  background: #f6f9fc;
+  border-bottom: 1px solid #dde;
+  font-size: 0.8rem;
+  color: #33475b;
+  line-height: 1.4;
+}
+.reliability-icon { flex-shrink: 0; }
+
 main {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 18px;
-  padding: 18px 28px;
+  gap: 10px;
+  padding: 14px 12px;
   align-items: start;
 }
 @media (max-width: 1200px) {
@@ -68,7 +81,7 @@ main {
 .card {
   background: #fff;
   border-radius: 10px;
-  padding: 16px 18px;
+  padding: 12px 8px;
   box-shadow: 0 1px 6px rgba(0,0,0,0.08);
 }
 h3 {

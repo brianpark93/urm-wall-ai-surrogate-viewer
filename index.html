@@ -21,11 +21,16 @@
   <span id="loading" class="loading" style="display:none">computing…</span>
 </div>
 
+<div class="reliability-row">
+  <span class="reliability-icon">📊</span>
+  <span id="reliability-note"></span>
+</div>
+
 <main>
   <section class="card wall-card">
     <h3>Plain ML surrogate <span class="hint">(MLP + Fourier features, no physics constraint)</span></h3>
     <div class="canvas-row">
-      <canvas id="wall-canvas-plain" width="380" height="340"></canvas>
+      <canvas id="wall-canvas-plain" width="380" height="528"></canvas>
     </div>
     <div class="stats" id="stats-plain"></div>
   </section>
@@ -33,7 +38,7 @@
   <section class="card wall-card">
     <h3>Physics-informed surrogate <span class="hint">(PINN: same network + monotonicity penalty on &part;damage/&part;PGA)</span></h3>
     <div class="canvas-row">
-      <canvas id="wall-canvas-pinn" width="380" height="340"></canvas>
+      <canvas id="wall-canvas-pinn" width="380" height="528"></canvas>
     </div>
     <div class="stats" id="stats-pinn"></div>
   </section>
@@ -41,7 +46,7 @@
   <section class="card wall-card diff-card">
     <h3>Model disagreement <span class="hint">(|plain &minus; PINN|, same PGA)</span></h3>
     <div class="canvas-row">
-      <canvas id="wall-canvas-diff" width="380" height="340"></canvas>
+      <canvas id="wall-canvas-diff" width="380" height="528"></canvas>
     </div>
     <div class="stats" id="stats-diff"></div>
   </section>

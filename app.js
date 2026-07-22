@@ -6,6 +6,18 @@ let debounceTimer = null;
 
 const DIFF_MAX = 0.4; // colorbar cap for the |plain - PINN| disagreement panel
 
+// Historical leave-one-out validation error (RMSE, 0-1 damage scale) for the
+// PLAIN ML surrogate, measured once offline across all 185 held-out
+// simulations (see data/F_vs_A_comparison.csv in the parent research repo).
+// This is not computed live -- a plain feed-forward net has no built-in
+// per-prediction uncertainty, so "reliability" here means "how wrong this
+// model has been shown to be in this PGA range before", not a confidence
+// interval on the specific prediction on screen.
+const VALIDATION_RMSE = {
+  mid:  0.126,   // 0.30-0.50g
+  high: 0.240,   // 0.50-0.66g (the upper edge of the training data)
+};
+
 // ── Tiny MLP forward pass (mirrors F_deep_surrogate.py's MLP exactly) ──────
 // layers[i] = {w: (out x in) array of arrays, b: (out,) array}
 // All layers ReLU except the last, which is Sigmoid.
@@ -52,7 +64,7 @@ function predictAll(model, pgaRaw) {
 // ── Coordinate mapping (auto-fit to projected bbox) ───────────────────────
 function makeXform(canvas) {
   const { xmin, xmax, zmin, zmax } = geometry.bbox;
-  const PAD_PX = 16;
+  const PAD_PX = 6;
   const W = canvas.width  - 2 * PAD_PX;
   const H = canvas.height - 2 * PAD_PX;
   const sx = W / (xmax - xmin);
@@ -182,6 +194,31 @@ function diffStats(dPlain, dPinn) {
   `;
 }
 
+// ── Reliability note: known validation error for the current PGA, not a
+// live per-prediction confidence score ─────────────────────────────────────
+function reliabilityNote(pgaRaw) {
+  const trainMax = modelPlain.pga_max;
+  if (pgaRaw > trainMax) {
+    return `<strong>Reliability: unknown.</strong> This PGA is beyond every simulated ` +
+           `training run (max ${trainMax.toFixed(2)}g) — there is no validation data out ` +
+           `here, so treat this as unverified extrapolation, not a tested prediction.`;
+  }
+  if (pgaRaw < 0.30) {
+    return `<strong>Reliability: not meaningfully testable in this range.</strong> Below 0.30g, ` +
+           `almost every real simulation shows zero damage, so a low validation error here ` +
+           `mostly reflects correctly predicting "no damage", not genuine spatial accuracy.`;
+  }
+  const band = pgaRaw <= 0.50 ? 'mid' : 'high';
+  const rmse = VALIDATION_RMSE[band];
+  const rangeLabel = band === 'mid' ? '0.30–0.50g' : '0.50–0.66g';
+  return `<strong>Reliability (measured):</strong> in the ${rangeLabel} range, leave-one-out ` +
+         `testing across all 185 simulations found the plain ML model typically off by about ` +
+         `<strong>${pct(rmse)}%</strong> damage (RMSE ${rmse.toFixed(3)} on a 0&ndash;1 scale). ` +
+         `The physics-informed model wasn't validated at this same resolution — pilot testing ` +
+         `suggested similar-to-slightly-higher error overall, so read both predictions with ` +
+         `the same amount of caution.`;
+}
+
 // ── Main update ─────────────────────────────────────────────────────────────
 function updatePrediction(pgaRaw) {
   document.getElementById('loading').style.display = 'inline';
@@ -199,6 +236,7 @@ function updatePrediction(pgaRaw) {
     document.getElementById('stats-plain').innerHTML = statsSentence(zoneStats(dPlain));
     document.getElementById('stats-pinn').innerHTML  = statsSentence(zoneStats(dPinn));
     document.getElementById('stats-diff').innerHTML  = diffStats(dPlain, dPinn);
+    document.getElementById('reliability-note').innerHTML = reliabilityNote(pgaRaw);
 
     const badge = document.getElementById('range-badge');
     if (pgaRaw > modelPlain.pga_max) {
