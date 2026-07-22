@@ -51,13 +51,18 @@ header .subtitle { font-size: 0.78rem; color: #8aabce; }
 
 main {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 18px;
   padding: 18px 28px;
   align-items: start;
 }
-@media (max-width: 900px) {
+@media (max-width: 1200px) {
+  main { grid-template-columns: 1fr 1fr; }
+  .diff-card { grid-column: 1 / -1; }
+}
+@media (max-width: 700px) {
   main { grid-template-columns: 1fr; }
+  .diff-card { grid-column: auto; }
 }
 
 .card {
@@ -75,26 +80,32 @@ h3 {
 .hint { font-weight: 400; color: #888; }
 
 .canvas-row { display: flex; justify-content: center; }
-#wall-canvas-plain, #wall-canvas-pinn {
+.canvas-row canvas {
+  max-width: 100%;
+  height: auto;
   border: 1px solid #e8e8e8;
   border-radius: 4px;
   background: #fafafa;
 }
 
 .stats {
-  margin-top: 8px;
-  font-size: 0.78rem;
-  color: #666;
-  font-family: 'Courier New', monospace;
-  text-align: center;
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: #444;
+  line-height: 1.5;
+  text-align: left;
 }
+.stats p { margin: 2px 0; }
 
 .colorbar-row {
   grid-column: 1 / -1;
   display: flex;
   justify-content: center;
+  gap: 32px;
+  flex-wrap: wrap;
 }
-#colorbar-canvas { background: #fff; border-radius: 6px; }
+.colorbar-block { text-align: center; }
+#colorbar-canvas, #colorbar-canvas-diff { background: #fff; border-radius: 6px; }
 
 .note-card { grid-column: 1 / -1; }
 

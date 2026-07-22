@@ -4,6 +4,8 @@ let modelPlain = null;
 let modelPinn  = null;
 let debounceTimer = null;
 
+const DIFF_MAX = 0.4; // colorbar cap for the |plain - PINN| disagreement panel
+
 // ── Tiny MLP forward pass (mirrors F_deep_surrogate.py's MLP exactly) ──────
 // layers[i] = {w: (out x in) array of arrays, b: (out,) array}
 // All layers ReLU except the last, which is Sigmoid.
@@ -64,7 +66,25 @@ function makeXform(canvas) {
   };
 }
 
-function renderWall(canvasId, damage) {
+// ── Color scales ─────────────────────────────────────────────────────────
+// Damage: white (0) -> black (1), same convention as the rest of the project.
+function damageColor(d) {
+  if (d < 0.05) return 'rgb(255,255,255)';
+  const g = Math.round(255 * (1 - d));
+  return `rgb(${g},${g},${g})`;
+}
+// Disagreement: white (0) -> dark red (DIFF_MAX+), same 'Reds' convention
+// used for error maps elsewhere in this project (light=low, dark=high).
+function diffColor(d) {
+  const t = Math.min(1, d / DIFF_MAX);
+  if (t < 0.03) return 'rgb(255,255,255)';
+  const r = Math.round(255 - t * (255 - 130));
+  const g = Math.round(255 - t * 235);
+  const b = Math.round(255 - t * 235);
+  return `rgb(${r},${g},${b})`;
+}
+
+function renderWall(canvasId, damage, colorFn, diagColor) {
   const canvas = document.getElementById(canvasId);
   const ctx    = canvas.getContext('2d');
   const { tx, tz } = makeXform(canvas);
@@ -72,13 +92,7 @@ function renderWall(canvasId, damage) {
 
   // elements are pre-sorted back-to-front (painter's algorithm) in geometry_lw.json
   geometry.elements.forEach((elem) => {
-    const d = damage[elem.col];
-    if (d < 0.05) {
-      ctx.fillStyle = 'rgb(255,255,255)';
-    } else {
-      const gray = Math.round(255 * (1 - d));
-      ctx.fillStyle = `rgb(${gray},${gray},${gray})`;
-    }
+    ctx.fillStyle = colorFn(damage[elem.col]);
     ctx.beginPath();
     elem.poly.forEach(([xi, zi], j) => {
       if (j === 0) ctx.moveTo(tx(xi), tz(zi));
@@ -92,9 +106,10 @@ function renderWall(canvasId, damage) {
   });
 
   const diag = geometry.diagonal;
-  strokePolyline(ctx, diag.line,     tx, tz, 'rgba(200,0,0,0.85)', 1.5, []);
-  strokePolyline(ctx, diag.band_pos, tx, tz, 'rgba(200,0,0,0.45)', 1.0, [5, 4]);
-  strokePolyline(ctx, diag.band_neg, tx, tz, 'rgba(200,0,0,0.45)', 1.0, [5, 4]);
+  const [lineC, bandC] = diagColor || ['rgba(200,0,0,0.85)', 'rgba(200,0,0,0.40)'];
+  strokePolyline(ctx, diag.line,     tx, tz, lineC, 1.5, []);
+  strokePolyline(ctx, diag.band_pos, tx, tz, bandC, 1.0, [5, 4]);
+  strokePolyline(ctx, diag.band_neg, tx, tz, bandC, 1.0, [5, 4]);
 }
 
 function strokePolyline(ctx, pts, tx, tz, color, width, dash) {
@@ -112,29 +127,46 @@ function strokePolyline(ctx, pts, tx, tz, color, width, dash) {
   ctx.restore();
 }
 
-// ── Colorbar (horizontal) ──────────────────────────────────────────────────
-function renderColorbar() {
-  const canvas = document.getElementById('colorbar-canvas');
+// ── Colorbars (horizontal, with headroom so labels never clip) ────────────
+function drawColorbar(canvasId, colorStops, ticks, title) {
+  const canvas = document.getElementById(canvasId);
   const ctx    = canvas.getContext('2d');
-  const left = 20, right = canvas.width - 20, y0 = 8, h = 14;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const left = 24, right = canvas.width - 24, y0 = 10, h = 16;
+
   const grad = ctx.createLinearGradient(left, 0, right, 0);
-  grad.addColorStop(0, '#fff');
-  grad.addColorStop(1, '#000');
+  colorStops.forEach(([stop, color]) => grad.addColorStop(stop, color));
   ctx.fillStyle = grad;
   ctx.fillRect(left, y0, right - left, h);
   ctx.strokeStyle = '#aaa';
   ctx.strokeRect(left, y0, right - left, h);
+
   ctx.fillStyle = '#555';
-  ctx.font = '10px sans-serif';
+  ctx.font = '11px sans-serif';
   ctx.textAlign = 'center';
-  [0, 0.25, 0.5, 0.75, 1.0].forEach(v => {
-    const x = left + v * (right - left);
-    ctx.fillText(v.toFixed(2), x, y0 + h + 14);
+  ctx.textBaseline = 'top';
+  ticks.forEach(([frac, label]) => {
+    const x = left + frac * (right - left);
+    ctx.fillText(label, x, y0 + h + 6);
   });
-  ctx.fillText('damage (predicted)', (left + right) / 2, y0 + h + 30);
+  ctx.fillStyle = '#666';
+  ctx.font = '11px sans-serif';
+  ctx.fillText(title, (left + right) / 2, y0 + h + 24);
 }
 
-// ── Zone-averaged stats ─────────────────────────────────────────────────────
+function renderColorbars() {
+  drawColorbar('colorbar-canvas',
+    [[0, '#fff'], [1, '#000']],
+    [[0, '0'], [0.25, '0.25'], [0.5, '0.5'], [0.75, '0.75'], [1, '1.0']],
+    'predicted damage (white = intact, black = fully damaged)');
+  drawColorbar('colorbar-canvas-diff',
+    [[0, '#fff'], [1, `rgb(130,20,20)`]],
+    [[0, '0'], [0.25, (0.25*DIFF_MAX).toFixed(2)], [0.5, (0.5*DIFF_MAX).toFixed(2)],
+     [0.75, (0.75*DIFF_MAX).toFixed(2)], [1, `${DIFF_MAX.toFixed(2)}+`]],
+    'plain vs PINN disagreement (|Δdamage|)');
+}
+
+// ── Zone-averaged stats, written out as sentences ──────────────────────────
 function zoneStats(damage) {
   let sLw=0,nLw=0, sBas=0,nBas=0, sInb=0,nInb=0;
   geometry.elements.forEach(e => {
@@ -146,6 +178,31 @@ function zoneStats(damage) {
   return { lw: sLw/nLw, base: nBas?sBas/nBas:0, inband: nInb?sInb/nInb:0 };
 }
 
+function pct(x) { return Math.round(x * 100); }
+
+function statsSentence(s) {
+  return `
+    <p>On average, <strong>${pct(s.lw)}%</strong> of the long wall is damaged.</p>
+    <p>The base bed-joint is <strong>${pct(s.base)}%</strong> damaged on average.</p>
+    <p>The in-band diagonal zone is <strong>${pct(s.inband)}%</strong> damaged on average.</p>
+  `;
+}
+
+function diffStats(dPlain, dPinn) {
+  let sum = 0, max = 0;
+  const n = dPlain.length;
+  for (let i = 0; i < n; i++) {
+    const d = Math.abs(dPlain[i] - dPinn[i]);
+    sum += d;
+    if (d > max) max = d;
+  }
+  const mean = sum / n;
+  return `
+    <p>The two models disagree by <strong>${pct(mean)}%</strong> damage on average across all elements.</p>
+    <p>The single largest disagreement at any one element is <strong>${pct(max)}%</strong>.</p>
+  `;
+}
+
 // ── Main update ─────────────────────────────────────────────────────────────
 function updatePrediction(pgaRaw) {
   document.getElementById('loading').style.display = 'inline';
@@ -153,14 +210,16 @@ function updatePrediction(pgaRaw) {
   setTimeout(() => {
     const dPlain = predictAll(modelPlain, pgaRaw);
     const dPinn  = predictAll(modelPinn,  pgaRaw);
-    renderWall('wall-canvas-plain', dPlain);
-    renderWall('wall-canvas-pinn',  dPinn);
+    const dDiff  = new Float32Array(dPlain.length);
+    for (let i = 0; i < dDiff.length; i++) dDiff[i] = Math.abs(dPlain[i] - dPinn[i]);
 
-    const sp = zoneStats(dPlain), sn = zoneStats(dPinn);
-    document.getElementById('stats-plain').textContent =
-      `LW=${sp.lw.toFixed(3)}  base=${sp.base.toFixed(3)}  in-band=${sp.inband.toFixed(3)}`;
-    document.getElementById('stats-pinn').textContent =
-      `LW=${sn.lw.toFixed(3)}  base=${sn.base.toFixed(3)}  in-band=${sn.inband.toFixed(3)}`;
+    renderWall('wall-canvas-plain', dPlain, damageColor);
+    renderWall('wall-canvas-pinn',  dPinn,  damageColor);
+    renderWall('wall-canvas-diff',  dDiff,  diffColor, ['rgba(0,90,200,0.85)', 'rgba(0,90,200,0.40)']);
+
+    document.getElementById('stats-plain').innerHTML = statsSentence(zoneStats(dPlain));
+    document.getElementById('stats-pinn').innerHTML  = statsSentence(zoneStats(dPinn));
+    document.getElementById('stats-diff').innerHTML  = diffStats(dPlain, dPinn);
 
     const badge = document.getElementById('range-badge');
     if (pgaRaw > modelPlain.pga_max) {
@@ -196,7 +255,7 @@ async function init() {
     fetch('data/model_pinn.json').then(r => r.json()),
   ]);
 
-  renderColorbar();
+  renderColorbars();
 
   const input  = document.getElementById('pga-input');
   const slider = document.getElementById('pga-slider');

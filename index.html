@@ -25,7 +25,7 @@
   <section class="card wall-card">
     <h3>Plain ML surrogate <span class="hint">(MLP + Fourier features, no physics constraint)</span></h3>
     <div class="canvas-row">
-      <canvas id="wall-canvas-plain" width="480" height="420"></canvas>
+      <canvas id="wall-canvas-plain" width="380" height="340"></canvas>
     </div>
     <div class="stats" id="stats-plain"></div>
   </section>
@@ -33,13 +33,26 @@
   <section class="card wall-card">
     <h3>Physics-informed surrogate <span class="hint">(PINN: same network + monotonicity penalty on &part;damage/&part;PGA)</span></h3>
     <div class="canvas-row">
-      <canvas id="wall-canvas-pinn" width="480" height="420"></canvas>
+      <canvas id="wall-canvas-pinn" width="380" height="340"></canvas>
     </div>
     <div class="stats" id="stats-pinn"></div>
   </section>
 
+  <section class="card wall-card diff-card">
+    <h3>Model disagreement <span class="hint">(|plain &minus; PINN|, same PGA)</span></h3>
+    <div class="canvas-row">
+      <canvas id="wall-canvas-diff" width="380" height="340"></canvas>
+    </div>
+    <div class="stats" id="stats-diff"></div>
+  </section>
+
   <div class="colorbar-row">
-    <canvas id="colorbar-canvas" width="480" height="46"></canvas>
+    <div class="colorbar-block">
+      <canvas id="colorbar-canvas" width="360" height="64"></canvas>
+    </div>
+    <div class="colorbar-block">
+      <canvas id="colorbar-canvas-diff" width="360" height="64"></canvas>
+    </div>
   </div>
 
   <section class="card note-card">
@@ -71,6 +84,13 @@
         <div>
           <strong>Damage 0 → 1</strong>
           <p>White = intact. Black = fully damaged/eroded. Long-wall mortar elements only (8,480), isometric az=45° el=25° projection, same convention as the rest of this project.</p>
+        </div>
+      </div>
+      <div class="info-item">
+        <span class="info-icon">🔴</span>
+        <div>
+          <strong>Third panel: where the two models disagree</strong>
+          <p>Absolute difference between the plain and physics-informed predictions, element by element, at the same PGA. Darker red = the two surrogates disagree more there — not an error against ground truth, just how far apart the two models are from each other.</p>
         </div>
       </div>
     </div>
