@@ -84,7 +84,7 @@ function diffColor(d) {
   return `rgb(${r},${g},${b})`;
 }
 
-function renderWall(canvasId, damage, colorFn, diagColor) {
+function renderWall(canvasId, damage, colorFn) {
   const canvas = document.getElementById(canvasId);
   const ctx    = canvas.getContext('2d');
   const { tx, tz } = makeXform(canvas);
@@ -104,27 +104,6 @@ function renderWall(canvasId, damage, colorFn, diagColor) {
     ctx.lineWidth = 0.3;
     ctx.stroke();
   });
-
-  const diag = geometry.diagonal;
-  const [lineC, bandC] = diagColor || ['rgba(200,0,0,0.85)', 'rgba(200,0,0,0.40)'];
-  strokePolyline(ctx, diag.line,     tx, tz, lineC, 1.5, []);
-  strokePolyline(ctx, diag.band_pos, tx, tz, bandC, 1.0, [5, 4]);
-  strokePolyline(ctx, diag.band_neg, tx, tz, bandC, 1.0, [5, 4]);
-}
-
-function strokePolyline(ctx, pts, tx, tz, color, width, dash) {
-  if (!pts || pts.length === 0) return;
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.lineWidth   = width;
-  ctx.setLineDash(dash);
-  ctx.beginPath();
-  pts.forEach(([x, z], j) => {
-    if (j === 0) ctx.moveTo(tx(x), tz(z));
-    else         ctx.lineTo(tx(x), tz(z));
-  });
-  ctx.stroke();
-  ctx.restore();
 }
 
 // ── Colorbars (horizontal, with headroom so labels never clip) ────────────
@@ -215,7 +194,7 @@ function updatePrediction(pgaRaw) {
 
     renderWall('wall-canvas-plain', dPlain, damageColor);
     renderWall('wall-canvas-pinn',  dPinn,  damageColor);
-    renderWall('wall-canvas-diff',  dDiff,  diffColor, ['rgba(0,90,200,0.85)', 'rgba(0,90,200,0.40)']);
+    renderWall('wall-canvas-diff',  dDiff,  diffColor);
 
     document.getElementById('stats-plain').innerHTML = statsSentence(zoneStats(dPlain));
     document.getElementById('stats-pinn').innerHTML  = statsSentence(zoneStats(dPinn));
