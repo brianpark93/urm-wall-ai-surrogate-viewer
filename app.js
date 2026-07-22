@@ -174,10 +174,16 @@ function updatePrediction(pgaRaw) {
   }, 10);
 }
 
-function onPgaChange(value) {
+// source: 'input' (typed, full precision, don't touch the box while they're
+// typing) or 'slider' (dragged, browser already snapped it to a step -- fine
+// to mirror that value into the number box for display).
+function onPgaChange(value, source) {
   const pga = Math.max(0.001, parseFloat(value) || 0.35);
-  document.getElementById('pga-input').value = pga.toFixed(3);
-  document.getElementById('pga-slider').value = Math.min(pga, 0.90);
+  if (source === 'slider') {
+    document.getElementById('pga-input').value = pga.toFixed(3);
+  } else {
+    document.getElementById('pga-slider').value = Math.min(Math.max(pga, 0.01), 0.90);
+  }
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => updatePrediction(pga), 40);
 }
@@ -194,8 +200,8 @@ async function init() {
 
   const input  = document.getElementById('pga-input');
   const slider = document.getElementById('pga-slider');
-  input.addEventListener('input',  e => onPgaChange(e.target.value));
-  slider.addEventListener('input', e => onPgaChange(e.target.value));
+  input.addEventListener('input',  e => onPgaChange(e.target.value, 'input'));
+  slider.addEventListener('input', e => onPgaChange(e.target.value, 'slider'));
 
   updatePrediction(parseFloat(input.value));
 }
