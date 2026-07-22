@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Surrogate Viewer — Predicted Crack Shape vs PGA</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>AI Surrogate Viewer</h1>
+  <p class="subtitle">L-shaped URM long wall · enter any PGA · live in-browser neural-network inference (no server)</p>
+</header>
+
+<div class="controls">
+  <label for="pga-input">PGA [g]</label>
+  <input type="number" id="pga-input" value="0.350" min="0.01" max="1.00" step="0.001">
+  <input type="range" id="pga-slider" min="0.01" max="0.90" step="0.001" value="0.350">
+  <span id="range-badge" class="range-badge">interpolation</span>
+  <span id="loading" class="loading" style="display:none">computing…</span>
+</div>
+
+<main>
+  <section class="card wall-card">
+    <h3>Plain ML surrogate <span class="hint">(MLP + Fourier features, no physics constraint)</span></h3>
+    <div class="canvas-row">
+      <canvas id="wall-canvas-plain" width="480" height="420"></canvas>
+    </div>
+    <div class="stats" id="stats-plain"></div>
+  </section>
+
+  <section class="card wall-card">
+    <h3>Physics-informed surrogate <span class="hint">(PINN: same network + monotonicity penalty on &part;damage/&part;PGA)</span></h3>
+    <div class="canvas-row">
+      <canvas id="wall-canvas-pinn" width="480" height="420"></canvas>
+    </div>
+    <div class="stats" id="stats-pinn"></div>
+  </section>
+
+  <div class="colorbar-row">
+    <canvas id="colorbar-canvas" width="480" height="46"></canvas>
+  </div>
+
+  <section class="card note-card">
+    <h3>What this is (and isn't)</h3>
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="info-icon">🧠</span>
+        <div>
+          <strong>Live inference, not a lookup table</strong>
+          <p>Both networks were trained once (on all 185 IDA runs) and exported as plain weight matrices. The forward pass for whatever PGA you type runs directly in this page's JavaScript — every value, including ones never simulated, is a genuine model prediction.</p>
+        </div>
+      </div>
+      <div class="info-item">
+        <span class="info-icon">📏</span>
+        <div>
+          <strong>Training range: 0.01–0.66g</strong>
+          <p>PGA above 0.66g is <em>extrapolation</em> beyond every simulated run (flagged above). Interpolated values (e.g. 0.153g) were never simulated either, but fall inside the trained range.</p>
+        </div>
+      </div>
+      <div class="info-item">
+        <span class="info-icon">⚖️</span>
+        <div>
+          <strong>PINN is not "more accurate" here</strong>
+          <p>Leave-one-out testing showed the physics-informed model is <em>not</em> more accurate than the plain one on this dataset (which has documented non-monotonic damage transitions) — it's shown side-by-side purely to compare what the monotonicity constraint changes qualitatively, especially on extrapolation.</p>
+        </div>
+      </div>
+      <div class="info-item">
+        <span class="info-icon">⬜→⬛</span>
+        <div>
+          <strong>Damage 0 → 1</strong>
+          <p>White = intact. Black = fully damaged/eroded. Long-wall mortar elements only (8,480), isometric az=45° el=25° projection, same convention as the rest of this project.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
